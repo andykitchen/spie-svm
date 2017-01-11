@@ -1,5 +1,10 @@
 import numpy as np
 
+from sklearn import svm
+from sklearn.cross_validation import cross_val_score
+from sklearn.metrics import make_scorer, roc_auc_score
+from sklearn.grid_search import GridSearchCV
+
 import util
 
 def prepare_images(patient_images):
@@ -34,20 +39,14 @@ def prepare_images(patient_images):
 def train_svm(patient_images):
 	bigX_flat, bigY = prepare_images(patient_images)
 
-	from sklearn import svm
 
 	model = svm.SVC(class_weight='balanced')
-
-	from sklearn.model_selection import cross_val_score
-	from sklearn.metrics import make_scorer, roc_auc_score
 
 	auc_scorer = make_scorer(roc_auc_score, needs_threshold=True)
 
 	# model.fit(bigX_flat, bigY)
 	# scores = cross_val_score(model, bigX_flat, bigY, cv=3, scoring=auc_scorer)
 	# print scores
-
-	from sklearn.model_selection import GridSearchCV
 
 	params = {
 	    'C': [0.1, 0.5, 1, 2, 5, 10, 20, 30, 50],
