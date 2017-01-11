@@ -22,3 +22,6 @@ class LoadPatientImagesTestCase(unittest.TestCase):
 
 		test_images = util.load_patient_images(
 			findings_path, doi_path, ktrans_path, limit=self.limit)
+
+if __name__ == '__main__':
+    unittest.main()
