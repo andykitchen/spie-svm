@@ -66,6 +66,6 @@ if __name__ == "__main__":
 	patient_images = util.load_patient_images(findings_path, doi_path, ktrans_path)
 	gcv = train_svm(patient_images)
 
-	print gcv.best_score_
-	print gcv.best_params_
+	print(gcv.best_score_)
+	print(gcv.best_params_)
 

@@ -68,7 +68,7 @@ def extract_patch(image, position, patch_pixels=128, patch_mm=60, layers=1, laye
 	pz   = layers
 	p    = np.array([pxy, pxy, pz], dtype=np.int)
 
-	resampleFilter.SetSize(p)
+	resampleFilter.SetSize(p.tolist())
 
 	bxy  = patch_mm # mm
 	bz   = layer_spacing_mm * (layers // 2)
@@ -153,7 +153,7 @@ def load_patient_images(findings_path, doi_path, ktrans_path, progress=tqdm, lim
 	# pos directly
 
 	findings_df = pd.read_csv(findings_path)
-	findings_df['pos'] = findings_df['pos'].map(lambda x: np.array(map(float, x.split())))
+	findings_df['pos'] = findings_df['pos'].map(lambda x: np.array(list(map(float, x.split()))))
 
 	if limit:
 		findings_df = findings_df[:limit]
