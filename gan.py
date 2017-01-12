@@ -47,8 +47,8 @@ def build_generator(bigZ):
 		  biases_initializer=tf.constant_initializer(0),
 		  weights_initializer=tf.uniform_unit_scaling_initializer(factor=1.43))
 		
-	bigXhat = net
-	return bigXhat
+	bigX_hat = net
+	return bigX_hat
 
 def build_gan(build_generator, build_discriminator):
 	batch_size = 200
@@ -96,6 +96,8 @@ def build_gan(build_generator, build_discriminator):
 
 	train_step_d = opt.minimize(dloss, var_list=dvars)
 	train_step_g = opt.minimize(gloss, var_list=gvars)
+
+	return bigX, bigX_hat, bigY, train_step_d, train_step_g
 
 
 def train_gan_nb(n_iters, batch_iterator,
