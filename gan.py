@@ -8,7 +8,7 @@ import tensorflow.contrib.slim as slim
 
 import matplotlib.pyplot as plt
 
-alpha=0.1
+alpha = 0.1
 
 def leaky_relu(x):
 	return tf.maximum(alpha*x,x)
@@ -63,14 +63,15 @@ def build_generator(bigZ, n_channels=1):
 GanModel = namedtuple('GanModel', [
 	  'bigX', 'bigX_hat', 'bigY',
 	  'dloss', 'gloss',
-	  'train_step_d', 'train_step_g'
+	  'train_step_d', 'train_step_g',
+	  'logits_real', 'logits_fake',
+	  'probs_real',
 	])
 
 def build_gan(build_generator, build_discriminator,
-	batch_size, h, w, n_channels, n_classes=1):
+	batch_size, h, w, n_channels, n_classes=1, label_smoothing=0, multiclass=False):
 
 	n_latent = 25
-	label_smoothing = 0.1
 
 	bigX = tf.placeholder(tf.float32, shape=[batch_size, h, w, n_channels])
 	bigY = tf.placeholder(tf.float32, shape=[batch_size, n_classes])
@@ -85,26 +86,33 @@ def build_gan(build_generator, build_discriminator,
 	with tf.variable_scope('D', reuse=True):
 		logits_fake = build_discriminator(bigX_hat, n_classes)
 
-	label_zeros = tf.zeros([batch_size, n_classes])
-	label_ones  = tf.ones([batch_size, 1])
-	logit_zeros = tf.zeros([batch_size, 1])
+	if multiclass:
+		label_zeros = tf.zeros([batch_size, n_classes])
+		label_ones  = tf.ones([batch_size, 1])
+		logit_zeros = tf.zeros([batch_size, 1])
 
-	logits_fake = tf.concat(1, [logits_fake, logit_zeros])
-	labels_fake = tf.concat(1, [label_zeros, label_ones])
+		logits_real_extended = tf.concat(1, [logits_real, logit_zeros])
+		labels_real_extended = tf.concat(1, [bigY, label_ones])
 
-	dloss_real_batch = slim.losses.softmax_cross_entropy(logits_real, bigY,
-	                                                     label_smoothing=label_smoothing)
+		logits_fake_extended = tf.concat(1, [logits_fake, logit_zeros])
+		labels_fake = tf.concat(1, [label_zeros, label_ones])
 
-	dloss_fake_batch = slim.losses.softmax_cross_entropy(logits_fake, labels_fake,
-	                                                     label_smoothing=label_smoothing)
+		dloss_real_batch = slim.losses.softmax_cross_entropy(logits_real_extended, labels_real_extended,
+		                                                     label_smoothing=label_smoothing)
 
-	# dloss_real_batch = slim.losses.sigmoid_cross_entropy(
-	# 	logits_real, tf.ones([batch_size, 1]),
-	# 	label_smoothing=label_smoothing)
+		dloss_fake_batch = slim.losses.softmax_cross_entropy(logits_fake_extended, labels_fake,
+                                                                 label_smoothing=label_smoothing)
 
-	# dloss_fake_batch = slim.losses.sigmoid_cross_entropy(
-	# 	logits_fake, tf.zeros([batch_size, 1]),
-	# 	label_smoothing=label_smoothing)
+		probs_real = tf.nn.softmax(logits_real_extended)
+
+	else:
+		dloss_real_batch = slim.losses.sigmoid_cross_entropy(
+		        logits_real, tf.ones([batch_size, 1]),
+		        label_smoothing=label_smoothing)
+
+		dloss_fake_batch = slim.losses.sigmoid_cross_entropy(
+		        logits_fake, tf.zeros([batch_size, 1]),
+		        label_smoothing=label_smoothing)
 
 	dloss_real = tf.reduce_mean(dloss_real_batch)
 	dloss_fake = tf.reduce_mean(dloss_fake_batch)
@@ -115,7 +123,7 @@ def build_gan(build_generator, build_discriminator,
 	dvars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='D')
 	gvars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='G')
 
-	opt = tf.train.AdamOptimizer(learning_rate=1e-3, beta1=0.1, epsilon=1e-6)
+	opt = tf.train.AdamOptimizer(learning_rate=1e-3, beta1=0.1, epsilon=1e-4)
 
 	train_step_d = opt.minimize(dloss, var_list=dvars)
 	train_step_g = opt.minimize(gloss, var_list=gvars)
@@ -127,10 +135,13 @@ def build_gan(build_generator, build_discriminator,
 	  dloss = dloss,
 	  gloss = gloss,
 	  train_step_d = train_step_d,
-	  train_step_g = train_step_g
+	  train_step_g = train_step_g,
+          logits_real = logits_real,
+          logits_fake = logits_fake,
+          probs_real = probs_real
 	)
 
-	return model
+	return model 
 
 
 def train_gan_nb(n_iters, batch_iterator, model,
@@ -174,7 +185,7 @@ def train_gan_nb(n_iters, batch_iterator, model,
 
 			for i, ax in enumerate(axf):
 				ax.imshow(im[i], interpolation='nearest', vmin=0, vmax=1.)
-				# ax.imshow(im[i,:,:,0], interpolation='nearest', vmin=0, vmax=1.)
+				# ax.imshow(im[i,:,:,2], interpolation='nearest', vmin=0, vmax=1., cmap=plt.cm.plasma)
 
 			display.clear_output(wait=True)
 			display.display(fig)
