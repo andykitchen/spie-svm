@@ -1,13 +1,17 @@
 import os
+import random
 from glob import glob
 from os.path import join
 from collections import namedtuple
 
 import numpy as np
+from numpy import newaxis
 import pandas as pd
 
 import dicom
 import SimpleITK as sitk
+
+from sklearn.feature_extraction.image import extract_patches_2d
 
 from tqdm import tqdm
 
@@ -46,7 +50,7 @@ def read_image_with_format(path):
 	else:
 		raise
 
-def extract_patch(image, position, patch_pixels=128, patch_mm=60, layers=1, layer_spacing_mm=3., augment=False, sigma=1.0, sigma_theta=0.1):
+def extract_patch(image, position, patch_px=128, patch_mm=60, layers=1, layer_spacing_mm=3., augment=False, sigma=1.0, sigma_theta=0.1):
 	"""extract a patch of an image around a position"""
 
 	resampleFilter = sitk.ResampleImageFilter()
@@ -64,7 +68,7 @@ def extract_patch(image, position, patch_pixels=128, patch_mm=60, layers=1, laye
 		tr.SetRotation(*a)
 		resampleFilter.SetTransform(tr)
 
-	pxy  = patch_pixels
+	pxy  = patch_px
 	pz   = layers
 	p    = np.array([pxy, pxy, pz], dtype=np.int)
 
@@ -183,3 +187,26 @@ def load_patient_images(findings_path, doi_path, ktrans_path, progress=tqdm, lim
 	patient_images = [process_row(row) for ix, row in it]
 
 	return patient_images
+
+def extract_random_patches(x, max_patches):
+	image = x.images[1]
+	nd = sitk.GetArrayFromImage(image)
+	layer = random.randrange(0, nd.shape[0])
+	patches = extract_patches_2d(nd[layer], (16, 16), max_patches=max_patches)
+	patches = patches[..., newaxis]
+	patches = patches.astype(np.float32) / 3000.
+	return patches
+	
+def random_element_generator(col):
+	while True:
+		yield random.choice(col)
+
+def concatenate_generator(it, n_elems):
+	while True:
+		yield np.concatenate([next(it) for i in range(n_elems)])
+		
+def patch_generator(patient_images, n_images=4, max_patches=50):
+	return concatenate_generator(
+		map(lambda im: extract_random_patches(im, max_patches=max_patches),
+			random_element_generator(patient_images)), n_elems=n_images)
+

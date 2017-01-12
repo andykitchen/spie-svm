@@ -2,6 +2,7 @@ import unittest
 
 import util
 import svm
+import gan
 
 class LoadPatientImagesTestCase(unittest.TestCase):
 	def setUp(self):
@@ -22,6 +23,13 @@ class LoadPatientImagesTestCase(unittest.TestCase):
 
 		test_images = util.load_patient_images(
 			findings_path, doi_path, ktrans_path, limit=self.limit)
+
+class BuildGanTestCase(unittest.TestCase):
+	def test_build(self):
+		model = gan.build_gan(gan.build_generator, gan.build_discriminator)
+		for field in model:
+			assert field is not None
+
 
 if __name__ == '__main__':
     unittest.main()

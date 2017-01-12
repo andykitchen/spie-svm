@@ -1,3 +1,13 @@
+from collections import namedtuple
+
+import numpy as np
+from numpy import newaxis
+
+import tensorflow as tf
+import tensorflow.contrib.slim as slim
+
+import matplotlib.pyplot as plt
+
 alpha=0.1
 
 def leaky_relu(x):
@@ -30,7 +40,7 @@ def build_discriminator(bigX, sigma=.1):
 	logits = net
 	return logits
 
-def build_generator(bigZ):
+def build_generator(bigZ, n_channels=1):
 	net = bigZ
 
 	with slim.arg_scope([slim.conv2d_transpose, slim.fully_connected],
@@ -42,7 +52,7 @@ def build_generator(bigZ):
 		net = tf.reshape(net, [-1, 4, 4, 16])
 		net = slim.conv2d_transpose(net, 32, [3,3], stride=[2,2], scope='tconv1')
 		net = slim.conv2d_transpose(net, 16, [3,3], stride=[2,2], scope='tconv2')
-		net = slim.conv2d_transpose(net, 1,  [3,3], scope='tconv3',
+		net = slim.conv2d_transpose(net, n_channels,  [3,3], scope='tconv3',
 		  activation_fn=tf.nn.relu,
 		  biases_initializer=tf.constant_initializer(0),
 		  weights_initializer=tf.uniform_unit_scaling_initializer(factor=1.43))
@@ -50,16 +60,18 @@ def build_generator(bigZ):
 	bigX_hat = net
 	return bigX_hat
 
-def build_gan(build_generator, build_discriminator):
-	batch_size = 200
+GanModel = namedtuple('GanModel', [
+	  'bigX', 'bigX_hat', 'bigY',
+	  'dloss', 'gloss',
+	  'train_step_d', 'train_step_g'
+	])
 
-	h = 16
-	w = 16
-	n_channels = 1
+def build_gan(build_generator, build_discriminator,
+	batch_size, h, w, n_channels):
+
+	n_latent = 25
 
 	n_classes = 1
-	n_latent  = 25
-
 	label_smoothing = 0.1
 
 	bigX = tf.placeholder(tf.float32, shape=[batch_size, h, w, n_channels])
@@ -67,7 +79,7 @@ def build_gan(build_generator, build_discriminator):
 	bigZ = tf.random_normal(shape=[batch_size, n_latent])
 
 	with tf.variable_scope('G'):
-		bigX_hat = build_generator(bigZ)
+		bigX_hat = build_generator(bigZ, n_channels)
 
 	with tf.variable_scope('D'):
 		logits_real = build_discriminator(bigX)
@@ -97,13 +109,25 @@ def build_gan(build_generator, build_discriminator):
 	train_step_d = opt.minimize(dloss, var_list=dvars)
 	train_step_g = opt.minimize(gloss, var_list=gvars)
 
-	return bigX, bigX_hat, bigY, train_step_d, train_step_g
+	model = GanModel(
+	  bigX = bigX,
+	  bigX_hat = bigX_hat,
+	  bigY = bigY,
+	  dloss = dloss,
+	  gloss = gloss,
+	  train_step_d = train_step_d,
+	  train_step_g = train_step_g
+	)
+
+	return model
 
 
-def train_gan_nb(n_iters, batch_iterator,
-	g_step_ratio=1, plot_every=100, progress=None):
+def train_gan_nb(n_iters, batch_iterator, model,
+	session=None, g_step_ratio=1, plot_every=100, progress=None):
 
 	from IPython import display
+
+	sess = session if session else tf.get_default_session()
 
 	gloss_val = np.inf
 	dloss_val = np.inf
@@ -119,25 +143,26 @@ def train_gan_nb(n_iters, batch_iterator,
 		               labelleft=False, labelright=False)
 
 
-	t = tqdm.tqdm_notebook(xrange(n_iters))
+	t = progress(range(n_iters)) if progress else range(n_iters)
 
 	for i in t:
-		gloss_val, _ = sess.run([gloss, train_step_g])
+		gloss_val, _ = sess.run([model.gloss, model.train_step_g])
 
 		if i % g_step_ratio == 0:
 			bigX_batch = next(batch_iterator)
-			dloss_val, gloss_val, _ = sess.run([dloss, gloss, train_step_d],
+			dloss_val, gloss_val, _ = sess.run([model.dloss, model.gloss, model.train_step_d],
 				feed_dict={
-					bigX: bigX_batch
+					model.bigX: bigX_batch
 				})
 
 		t.set_description('%.2f, %.2f' % (dloss_val, gloss_val))
 
 		if i % 100 == 0:
-			im = bigX_hat.eval()
+			im = model.bigX_hat.eval()
 
 			for i, ax in enumerate(axf):
-				ax.imshow(im[i,:,:,0], interpolation='nearest', vmin=0, vmax=1.)
+				ax.imshow(im[i], interpolation='nearest', vmin=0, vmax=1.)
+				# ax.imshow(im[i,:,:,0], interpolation='nearest', vmin=0, vmax=1.)
 
 			display.clear_output(wait=True)
 			display.display(fig)

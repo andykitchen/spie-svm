@@ -8,7 +8,7 @@ from sklearn.grid_search import GridSearchCV
 import util
 
 def prepare_images(patient_images):
-	bigXY = [(util.images_to_patches(images, pos, patch_pixels=5, patch_mm=5, layers=1), clin_sig, zone)
+	bigXY = [(util.images_to_patches(images, pos, patch_px=5, patch_mm=5, layers=1), clin_sig, zone)
 	         for patient_id, pos, clin_sig, zone, images in patient_images]
 
 	bigY = np.array([label if label is not None else -1 for data, label, zone in bigXY], dtype=np.int)
