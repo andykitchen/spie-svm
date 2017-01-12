@@ -157,7 +157,7 @@ def train_gan_nb(n_iters, batch_iterator, model,
 
 		t.set_description('%.2f, %.2f' % (dloss_val, gloss_val))
 
-		if i % 100 == 0:
+		if i % plot_every == 0:
 			im = model.bigX_hat.eval()
 
 			for i, ax in enumerate(axf):
