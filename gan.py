@@ -16,7 +16,7 @@ def leaky_relu(x):
 def gaussian_noise(x, stddev=0.5):
 	return tf.add(x, tf.random_normal(shape=x.get_shape(), stddev=stddev))
 
-def build_discriminator(bigX, sigma=.1):
+def build_discriminator(bigX, n_classes=1, sigma=.1):
 	net = bigX
 
 	with slim.arg_scope([slim.conv2d, slim.fully_connected],
@@ -32,7 +32,7 @@ def build_discriminator(bigX, sigma=.1):
 		net = tf.reduce_mean(net, reduction_indices=(1,2), keep_dims=True)
 		net = slim.flatten(net)
 		net = slim.dropout(net, 0.5)
-		net = slim.fully_connected(net, 1, scope='fc1',
+		net = slim.fully_connected(net, n_classes, scope='fc1',
 		  activation_fn=None,
 		  biases_initializer=tf.constant_initializer(0),
 		  weights_initializer=tf.uniform_unit_scaling_initializer(factor=1.0))
@@ -67,11 +67,9 @@ GanModel = namedtuple('GanModel', [
 	])
 
 def build_gan(build_generator, build_discriminator,
-	batch_size, h, w, n_channels):
+	batch_size, h, w, n_channels, n_classes=1):
 
 	n_latent = 25
-
-	n_classes = 1
 	label_smoothing = 0.1
 
 	bigX = tf.placeholder(tf.float32, shape=[batch_size, h, w, n_channels])
@@ -82,18 +80,31 @@ def build_gan(build_generator, build_discriminator,
 		bigX_hat = build_generator(bigZ, n_channels)
 
 	with tf.variable_scope('D'):
-		logits_real = build_discriminator(bigX)
+		logits_real = build_discriminator(bigX, n_classes)
 
 	with tf.variable_scope('D', reuse=True):
-		logits_fake = build_discriminator(bigX_hat)
+		logits_fake = build_discriminator(bigX_hat, n_classes)
 
-	dloss_real_batch = slim.losses.sigmoid_cross_entropy(
-		logits_real, tf.ones([batch_size, 1]),
-		label_smoothing=label_smoothing)
+	label_zeros = tf.zeros([batch_size, n_classes])
+	label_ones  = tf.ones([batch_size, 1])
+	logit_zeros = tf.zeros([batch_size, 1])
 
-	dloss_fake_batch = slim.losses.sigmoid_cross_entropy(
-		logits_fake, tf.zeros([batch_size, 1]),
-		label_smoothing=label_smoothing)
+	logits_fake = tf.concat(1, [logits_fake, logit_zeros])
+	labels_fake = tf.concat(1, [label_zeros, label_ones])
+
+	dloss_real_batch = slim.losses.softmax_cross_entropy(logits_real, bigY,
+	                                                     label_smoothing=label_smoothing)
+
+	dloss_fake_batch = slim.losses.softmax_cross_entropy(logits_fake, labels_fake,
+	                                                     label_smoothing=label_smoothing)
+
+	# dloss_real_batch = slim.losses.sigmoid_cross_entropy(
+	# 	logits_real, tf.ones([batch_size, 1]),
+	# 	label_smoothing=label_smoothing)
+
+	# dloss_fake_batch = slim.losses.sigmoid_cross_entropy(
+	# 	logits_fake, tf.zeros([batch_size, 1]),
+	# 	label_smoothing=label_smoothing)
 
 	dloss_real = tf.reduce_mean(dloss_real_batch)
 	dloss_fake = tf.reduce_mean(dloss_fake_batch)
@@ -149,10 +160,11 @@ def train_gan_nb(n_iters, batch_iterator, model,
 		gloss_val, _ = sess.run([model.gloss, model.train_step_g])
 
 		if i % g_step_ratio == 0:
-			bigX_batch = next(batch_iterator)
+			bigX_batch, bigY_batch = next(batch_iterator)
 			dloss_val, gloss_val, _ = sess.run([model.dloss, model.gloss, model.train_step_d],
 				feed_dict={
-					model.bigX: bigX_batch
+					model.bigX: bigX_batch,
+					model.bigY: bigY_batch
 				})
 
 		t.set_description('%.2f, %.2f' % (dloss_val, gloss_val))
