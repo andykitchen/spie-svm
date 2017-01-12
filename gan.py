@@ -115,7 +115,7 @@ def build_gan(build_generator, build_discriminator,
 	dvars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='D')
 	gvars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='G')
 
-	opt = tf.train.AdamOptimizer(learning_rate=1e-3, beta1=0.1, epsilon=0.1)
+	opt = tf.train.AdamOptimizer(learning_rate=1e-3, beta1=0.1, epsilon=1e-6)
 
 	train_step_d = opt.minimize(dloss, var_list=dvars)
 	train_step_g = opt.minimize(gloss, var_list=gvars)
