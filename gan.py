@@ -16,7 +16,7 @@ def leaky_relu(x):
 def gaussian_noise(x, stddev=0.5):
 	return tf.add(x, tf.random_normal(shape=x.get_shape(), stddev=stddev))
 
-def build_discriminator(bigX, n_classes=1, sigma=.1):
+def build_discriminator(bigX, n_classes=1, is_training=True, sigma=.5):
 	net = bigX
 
 	with slim.arg_scope([slim.conv2d, slim.fully_connected],
@@ -24,14 +24,14 @@ def build_discriminator(bigX, n_classes=1, sigma=.1):
 		   biases_initializer=tf.constant_initializer(0.0),
 		   weights_initializer=tf.uniform_unit_scaling_initializer(factor=1.5)):
 
-		net = slim.conv2d(net, 16, [3,3], scope='conv1')
+		net = slim.conv2d(net, 32, [3,3], scope='conv1')
 		net = gaussian_noise(net, sigma)
-		net = slim.conv2d(net, 32, [3,3], scope='conv2', stride=[2,2])
+		net = slim.conv2d(net, 64, [3,3], scope='conv2', stride=[2,2])
 		net = gaussian_noise(net, sigma)
-		net = slim.conv2d(net, 64, [3,3], scope='conv3', stride=[2,2])
+		net = slim.conv2d(net, 128, [3,3], scope='conv3', stride=[2,2])
 		net = tf.reduce_mean(net, reduction_indices=(1,2), keep_dims=True)
-		net = slim.flatten(net)
-		net = slim.dropout(net, 0.5)
+		net = slim.flatten(net, scope='flat')
+		net = slim.dropout(net, 0.5, is_training=is_training)
 		net = slim.fully_connected(net, n_classes, scope='fc1',
 		  activation_fn=None,
 		  biases_initializer=tf.constant_initializer(0),
@@ -52,7 +52,7 @@ def build_generator(bigZ, n_channels=1):
 		net = tf.reshape(net, [-1, 4, 4, 16])
 		net = slim.conv2d_transpose(net, 32, [3,3], stride=[2,2], scope='tconv1')
 		net = slim.conv2d_transpose(net, 16, [3,3], stride=[2,2], scope='tconv2')
-		net = slim.conv2d_transpose(net, n_channels,  [3,3], scope='tconv3',
+		net = slim.conv2d_transpose(net, n_channels, [3,3], scope='tconv3',
 		  activation_fn=tf.nn.relu,
 		  biases_initializer=tf.constant_initializer(0),
 		  weights_initializer=tf.uniform_unit_scaling_initializer(factor=1.43))
@@ -65,6 +65,7 @@ GanModel = namedtuple('GanModel', [
 	  'dloss', 'gloss',
 	  'train_step_d', 'train_step_g',
 	  'logits_real', 'logits_fake',
+	  'is_training',
 	  'probs_real',
 	])
 
@@ -77,14 +78,16 @@ def build_gan(build_generator, build_discriminator,
 	bigY = tf.placeholder(tf.float32, shape=[batch_size, n_classes])
 	bigZ = tf.random_normal(shape=[batch_size, n_latent])
 
+	is_training = tf.placeholder_with_default(True, shape=())
+
 	with tf.variable_scope('G'):
 		bigX_hat = build_generator(bigZ, n_channels)
 
 	with tf.variable_scope('D'):
-		logits_real = build_discriminator(bigX, n_classes)
+		logits_real = build_discriminator(bigX, n_classes, is_training)
 
 	with tf.variable_scope('D', reuse=True):
-		logits_fake = build_discriminator(bigX_hat, n_classes)
+		logits_fake = build_discriminator(bigX_hat, n_classes, is_training)
 
 	if multiclass:
 		label_zeros = tf.zeros([batch_size, n_classes])
@@ -123,7 +126,7 @@ def build_gan(build_generator, build_discriminator,
 	dvars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='D')
 	gvars = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='G')
 
-	opt = tf.train.AdamOptimizer(learning_rate=1e-3, beta1=0.1, epsilon=1e-4)
+	opt = tf.train.AdamOptimizer(learning_rate=1e-3, beta1=0.1, epsilon=1e-6)
 
 	train_step_d = opt.minimize(dloss, var_list=dvars)
 	train_step_g = opt.minimize(gloss, var_list=gvars)
@@ -138,6 +141,7 @@ def build_gan(build_generator, build_discriminator,
 	  train_step_g = train_step_g,
           logits_real = logits_real,
           logits_fake = logits_fake,
+          is_training = is_training,
           probs_real = probs_real
 	)
 
@@ -145,7 +149,9 @@ def build_gan(build_generator, build_discriminator,
 
 
 def train_gan_nb(n_iters, batch_iterator, model,
-	session=None, g_step_ratio=1, plot_every=100, progress=None):
+	session=None, g_step_ratio=1,
+	plot_every=100, plot_channel=0,
+	progress=None):
 
 	from IPython import display
 
@@ -184,8 +190,8 @@ def train_gan_nb(n_iters, batch_iterator, model,
 			im = model.bigX_hat.eval()
 
 			for i, ax in enumerate(axf):
-				ax.imshow(im[i], interpolation='nearest', vmin=0, vmax=1.)
-				# ax.imshow(im[i,:,:,2], interpolation='nearest', vmin=0, vmax=1., cmap=plt.cm.plasma)
+				# ax.imshow(im[i], interpolation='nearest', vmin=0, vmax=1.)
+				ax.imshow(im[i,:,:,plot_channel], interpolation='nearest', vmin=0, vmax=1., cmap=plt.cm.plasma)
 
 			display.clear_output(wait=True)
 			display.display(fig)
