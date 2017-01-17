@@ -113,7 +113,7 @@ def images_to_patches(images, pos, **args):
 	return np.concatenate(xs, axis=0)
 
 Patient = namedtuple('Patient',
-	['id', 'pos', 'clin_sig', 'zone', 'age', 'images'])
+	['id', 'pos', 'clin_sig', 'zone', 'age', 'weight', 'images'])
 
 def load_patient_images(
 	findings_csv_path, images_csv_path,
@@ -141,6 +141,10 @@ def load_patient_images(
 		k: np.mean([x.age for x in v])
 		for k, v in patient_series_metadata.items()}
 
+	patient_weights = {
+		k: np.mean([x.weight for x in v])
+		for k, v in patient_series_metadata.items()}
+
 	if limit:
 		findings_df = findings_df[:limit]
 
@@ -165,6 +169,7 @@ def load_patient_images(
 			clin_sig=clin_sig,
 			zone=zone,
 			age=patient_ages[patient_id],
+			weight=patient_weights[patient_id],
 			images=images)
 
 		return patient_data

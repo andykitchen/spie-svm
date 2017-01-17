@@ -12,7 +12,7 @@ import util
 
 def prepare_images(patient_images):
 	bigXY = [(
-	  util.images_to_patches(p.images, p.pos, patch_px=1, patch_mm=1, layers=1),
+	  util.images_to_patches(p.images, p.pos, patch_px=8, patch_mm=2, layers=1),
 	  p.clin_sig)
 	    for p in patient_images]
 
@@ -30,7 +30,9 @@ def prepare_images(patient_images):
 
 	bigX_z = bigX.copy()
 
-	bigX_z[...,2] = np.log(bigX[...,2] + 1e-2)
+	bigX_z = bigX_z.mean(axis=(1,2))
+
+	bigX_z[...,2] = np.log(bigX_z[...,2] + 1e-2)
 
 	bigX_z -= bigX_z.mean(axis=0, keepdims=True)
 	bigX_z /= bigX_z.std(axis=0, keepdims=True)
@@ -42,6 +44,9 @@ def prepare_images(patient_images):
 	enc = OneHotEncoder()
 	bigX_zone_hot = enc.fit_transform(bigX_zone[:, newaxis])
 	bigX_zone_hot = bigX_zone_hot.toarray()
+
+	bigX_zone_hot -= bigX_zone_hot.mean(axis=0, keepdims=True)
+	bigX_zone_hot /= bigX_zone_hot.std(axis=0, keepdims=True)
 
 	bigX_flat = np.hstack((bigX_flat, bigX_zone_hot, bigX_age))
 
