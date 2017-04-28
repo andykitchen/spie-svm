@@ -8,13 +8,16 @@ import tensorflow.contrib.slim as slim
 
 import matplotlib.pyplot as plt
 
+
 alpha = 0.1
 
 def leaky_relu(x):
 	return tf.maximum(alpha*x,x)
 
+
 def gaussian_noise(x, stddev=0.5):
 	return tf.add(x, tf.random_normal(shape=x.get_shape(), stddev=stddev))
+
 
 def build_discriminator(bigX, n_classes=1, is_training=True, sigma=.5):
 	net = bigX
@@ -39,6 +42,7 @@ def build_discriminator(bigX, n_classes=1, is_training=True, sigma=.5):
 
 	logits = net
 	return logits
+
 
 def build_generator(bigZ, n_channels=1):
 	net = bigZ
@@ -68,6 +72,7 @@ GanModel = namedtuple('GanModel', [
 	  'is_training',
 	  'probs_real',
 	])
+
 
 def build_gan(build_generator, build_discriminator,
 	batch_size, h, w, n_channels, n_classes=1, label_smoothing=0, multiclass=False):
@@ -117,6 +122,8 @@ def build_gan(build_generator, build_discriminator,
 		        logits_fake, tf.zeros([batch_size, 1]),
 		        label_smoothing=label_smoothing)
 
+		probs_real = tf.nn.softmax(logits_real)
+
 	dloss_real = tf.reduce_mean(dloss_real_batch)
 	dloss_fake = tf.reduce_mean(dloss_fake_batch)
 
@@ -132,25 +139,25 @@ def build_gan(build_generator, build_discriminator,
 	train_step_g = opt.minimize(gloss, var_list=gvars)
 
 	model = GanModel(
-	  bigX = bigX,
-	  bigX_hat = bigX_hat,
-	  bigY = bigY,
-	  dloss = dloss,
-	  gloss = gloss,
-	  train_step_d = train_step_d,
-	  train_step_g = train_step_g,
-          logits_real = logits_real,
-          logits_fake = logits_fake,
-          is_training = is_training,
-          probs_real = probs_real
+		bigX = bigX,
+		bigX_hat = bigX_hat,
+		bigY = bigY,
+		dloss = dloss,
+		gloss = gloss,
+		train_step_d = train_step_d,
+		train_step_g = train_step_g,
+		logits_real = logits_real,
+		logits_fake = logits_fake,
+		is_training = is_training,
+		probs_real = probs_real
 	)
 
-	return model 
+	return model
 
 
-def train_gan_nb(n_iters, batch_iterator, model,
+def train_gan(n_iters, batch_iterator, model,
 	session=None, g_step_ratio=1,
-	plot_every=100, plot_channel=0,
+	plot=True, plot_every=100, plot_channel=0,
 	progress=None):
 
 	from IPython import display
@@ -186,7 +193,7 @@ def train_gan_nb(n_iters, batch_iterator, model,
 
 		t.set_description('%.2f, %.2f' % (dloss_val, gloss_val))
 
-		if i % plot_every == 0:
+		if plot and i % plot_every == 0:
 			im = model.bigX_hat.eval()
 
 			for i, ax in enumerate(axf):
@@ -195,3 +202,5 @@ def train_gan_nb(n_iters, batch_iterator, model,
 
 			display.clear_output(wait=True)
 			display.display(fig)
+
+train_gan_nb = train_gan
