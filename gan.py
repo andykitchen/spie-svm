@@ -160,22 +160,22 @@ def train_gan(n_iters, batch_iterator, model,
 	plot=True, plot_every=100, plot_channel=0,
 	progress=None):
 
-	from IPython import display
-
 	sess = session if session else tf.get_default_session()
 
 	gloss_val = np.inf
 	dloss_val = np.inf
 
-	fig, axs = plt.subplots(5, 6, figsize=(6, 5))
-	plt.close(fig)
-	axf = axs.flatten()
+	if plot:
+		from IPython import display
+		fig, axs = plt.subplots(5, 6, figsize=(6, 5))
+		plt.close(fig)
+		axf = axs.flatten()
 
-	for ax in axf:
-		ax.tick_params(axis='both',
-		               top=False, bottom=False, left=False, right=False,
-		               labeltop=False, labelbottom=False,
-		               labelleft=False, labelright=False)
+		for ax in axf:
+			ax.tick_params(axis='both',
+			               top=False, bottom=False, left=False, right=False,
+			               labeltop=False, labelbottom=False,
+			               labelleft=False, labelright=False)
 
 
 	t = progress(range(n_iters)) if progress else range(n_iters)
