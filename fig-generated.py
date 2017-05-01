@@ -26,7 +26,7 @@ sess = tf.Session()
 
 saver = tf.train.Saver()
 
-saver.restore(sess, 'chk/gan.chk-1000')
+saver.restore(sess, 'chk/gan-5000')
 
 bigX_hat = model.bigX_hat.eval(session=sess)
 
@@ -40,7 +40,8 @@ for ax in axf:
                    labeltop=False, labelbottom=False,
                    labelleft=False, labelright=False)
 
-for i, ax in enumerate(axf):
-    ax.imshow(im[i,:,:,2], interpolation='nearest', vmin=0, vmax=1., cmap=plt.cm.plasma)
+for c in range(3):
+    for i, ax in enumerate(axf):
+        ax.imshow(im[i,:,:,c], interpolation='nearest', vmin=0, vmax=1., cmap=plt.cm.plasma)
 
-fig.savefig('figure-generated.pdf')
+    fig.savefig('figure-generated-{}.pdf'.format(c))

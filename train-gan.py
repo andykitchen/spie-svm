@@ -22,7 +22,7 @@ patient_images = util.load_patient_images(findings_csv_path, images_csv_path, do
 patch_px = 16
 patch_mm = 16
 batch_size = 200
-n_iters = 5000
+n_iters = 15000
 
 model = gan.build_gan(
     gan.build_generator,

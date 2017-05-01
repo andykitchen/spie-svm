@@ -109,7 +109,7 @@ def build_gan(build_generator, build_discriminator,
 		                                                     label_smoothing=label_smoothing)
 
 		dloss_fake_batch = slim.losses.softmax_cross_entropy(logits_fake_extended, labels_fake,
-                                                                 label_smoothing=label_smoothing)
+		                                                     label_smoothing=label_smoothing)
 
 		probs_real = tf.nn.softmax(logits_real_extended)
 

@@ -35,15 +35,18 @@ axins.set_ylim(y1, y2)
 
 axins.add_patch(
     patches.Rectangle(
-        (p[0] - 5, p[1] - 5),
-        10,
-        10,
+        (p[0] - 8, p[1] - 8),
+        16,
+        16,
         fill=False,
         ec='r',
         lw=2
     )
 )
 
+ax.axis('off')
+ax.axes.get_xaxis().set_visible(False)
+ax.axes.get_yaxis().set_visible(False)
 
 axins.axes.get_xaxis().set_visible(False)
 axins.axes.get_yaxis().set_visible(False)
@@ -58,4 +61,4 @@ def negate(x, pos):
 formatter = FuncFormatter(negate)
 ax.yaxis.set_major_formatter(formatter)
 
-fig.savefig('figure-patch-region.pdf')
+fig.savefig('figure-patch-region.pdf', bbox_inches='tight', pad_inches=0)
