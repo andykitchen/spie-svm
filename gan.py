@@ -61,7 +61,7 @@ def build_generator(bigZ, n_channels=1):
 	return bigX_hat
 
 GanModel = namedtuple('GanModel', [
-	  'bigX', 'bigX_hat', 'bigY',
+	  'bigX', 'bigX_hat', 'bigY', 'bigZ',
 	  'dloss', 'gloss',
 	  'train_step_d', 'train_step_g',
 	  'logits_real', 'logits_fake',
@@ -132,17 +132,18 @@ def build_gan(build_generator, build_discriminator,
 	train_step_g = opt.minimize(gloss, var_list=gvars)
 
 	model = GanModel(
-	  bigX = bigX,
-	  bigX_hat = bigX_hat,
-	  bigY = bigY,
-	  dloss = dloss,
-	  gloss = gloss,
-	  train_step_d = train_step_d,
-	  train_step_g = train_step_g,
-          logits_real = logits_real,
-          logits_fake = logits_fake,
-          is_training = is_training,
-          probs_real = probs_real
+		bigX = bigX,
+		bigX_hat = bigX_hat,
+		bigY = bigY,
+		bigZ = bigZ,
+		dloss = dloss,
+		gloss = gloss,
+		train_step_d = train_step_d,
+		train_step_g = train_step_g,
+		logits_real = logits_real,
+		logits_fake = logits_fake,
+		is_training = is_training,
+		probs_real = probs_real
 	)
 
 	return model 
