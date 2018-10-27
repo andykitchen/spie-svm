@@ -10,47 +10,57 @@ from sklearn.grid_search import GridSearchCV
 
 import util
 
-def prepare_images(patient_images):
+def prepare_images(patient_images, flat=True, reduce_mean=False):
 	bigXY = [(
-	  util.images_to_patches(p.images, p.pos, patch_px=8, patch_mm=2, layers=1),
+	  util.images_to_patches(p.images, p.pos, patch_px=5, patch_mm=5, layers=1),
 	  p.clin_sig)
 	    for p in patient_images]
 
+	# extract label and zone and age data
 	bigY = np.array([label if label is not None else -1 for data, label in bigXY], dtype=np.int)
 	bigX_zone = [p.zone for p in patient_images]
 	zone_to_index = {zone: i for i, zone in enumerate(sorted(list(set(bigX_zone))))}
 	bigX_zone = np.array([zone_to_index[zone] for zone in bigX_zone], dtype=np.int)
 
 	bigX_age = np.array([p.age for p in patient_images])
-	bigX_age -= bigX_age.mean()
-	bigX_age /= bigX_age.std()
 	bigX_age = bigX_age[:, newaxis]
 
+	# extract image data and normalize
 	bigX = np.concatenate([pixels.transpose(1,2,0)[newaxis,:] for pixels, label in bigXY], axis=0)
 
 	bigX_z = bigX.copy()
-
-	bigX_z = bigX_z.mean(axis=(1,2))
+	if reduce_mean:
+		bigX_z = bigX_z.mean(axis=(1,2))
 
 	bigX_z[...,2] = np.log(bigX_z[...,2] + 1e-2)
-
 	bigX_z -= bigX_z.mean(axis=0, keepdims=True)
 	bigX_z /= bigX_z.std(axis=0, keepdims=True)
 
 	bigX_flat = bigX_z.reshape(bigX_z.shape[0], -1)
 
+	# encode and normalize age and zone information
 	from sklearn.preprocessing import OneHotEncoder
 
 	enc = OneHotEncoder()
 	bigX_zone_hot = enc.fit_transform(bigX_zone[:, newaxis])
 	bigX_zone_hot = bigX_zone_hot.toarray()
 
-	bigX_zone_hot -= bigX_zone_hot.mean(axis=0, keepdims=True)
-	bigX_zone_hot /= bigX_zone_hot.std(axis=0, keepdims=True)
+	bigX_age_z = bigX_age.copy()
+	bigX_age_z -= bigX_age.mean()
+	bigX_age_z /= bigX_age.std()
 
-	bigX_flat = np.hstack((bigX_flat, bigX_zone_hot, bigX_age))
+	bigX_zone_hot_z = bigX_zone_hot.copy()
+	bigX_zone_hot_z -= bigX_zone_hot.mean(axis=0, keepdims=True)
+	bigX_zone_hot_z /= bigX_zone_hot.std(axis=0, keepdims=True)
 
-	return bigX_flat, bigY
+	if flat:
+		# glue everything together in one flat vector
+		bigX_flat = np.hstack((bigX_flat, bigX_zone_hot_z, bigX_age_z))
+		return bigX_flat, bigY
+	else:
+		# return images and auxiliary separately 
+		bigX_aux = np.hstack((bigX_zone_hot, bigX_age))
+		return bigX_z, bigY, bigX_aux
 
 def train_svm(patient_images):
 	bigX_flat, bigY = prepare_images(patient_images)
